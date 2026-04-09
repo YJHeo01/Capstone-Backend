@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주문 현황</title>
+    <style>
+        :root {
+            --bg: #f5efe6;
+            --panel: rgba(255, 252, 247, 0.88);
+            --ink: #1f2937;
+            --muted: #6b7280;
+            --line: rgba(148, 163, 184, 0.24);
+            --accent: #c2410c;
+            --accent-soft: #ffedd5;
+            --waiting: #f59e0b;
+            --delivering: #2563eb;
+            --completed: #059669;
+            --shadow: 0 22px 60px rgba(148, 163, 184, 0.18);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at top left, rgba(194, 65, 12, 0.18), transparent 28%),
+                radial-gradient(circle at top right, rgba(37, 99, 235, 0.14), transparent 30%),
+                linear-gradient(180deg, #fff9f1 0%, var(--bg) 100%);
+        }
+
+        .shell {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 40px 20px 60px;
+        }
+
+        .hero {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            align-items: flex-end;
+            margin-bottom: 28px;
+        }
+
+        .hero h1 {
+            margin: 0;
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            letter-spacing: -0.04em;
+        }
+
+        .hero p {
+            margin: 10px 0 0;
+            color: var(--muted);
+            font-size: 1rem;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .chip,
+        button {
+            border: 0;
+            border-radius: 999px;
+            padding: 12px 18px;
+            font-size: 0.95rem;
+        }
+
+        .chip {
+            background: rgba(255, 255, 255, 0.72);
+            color: var(--muted);
+            border: 1px solid var(--line);
+        }
+
+        button {
+            cursor: pointer;
+            background: linear-gradient(135deg, #ea580c, #c2410c);
+            color: white;
+            box-shadow: 0 16px 28px rgba(194, 65, 12, 0.22);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 18px 32px rgba(194, 65, 12, 0.3);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .card,
+        .panel {
+            background: var(--panel);
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(14px);
+            box-shadow: var(--shadow);
+        }
+
+        .card {
+            border-radius: 24px;
+            padding: 20px;
+        }
+
+        .card .label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .card .value {
+            margin-top: 16px;
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
+            font-weight: 700;
+            letter-spacing: -0.04em;
+        }
+
+        .panel {
+            border-radius: 28px;
+            padding: 24px;
+            overflow: hidden;
+        }
+
+        .panel-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .panel-head h2 {
+            margin: 0;
+            font-size: 1.3rem;
+        }
+
+        .panel-head p {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 860px;
+        }
+
+        th,
+        td {
+            padding: 16px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--line);
+            font-size: 0.95rem;
+            vertical-align: top;
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 0.88rem;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 92px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        .status-waiting {
+            color: #92400e;
+            background: rgba(245, 158, 11, 0.14);
+        }
+
+        .status-delivering {
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.12);
+        }
+
+        .status-completed {
+            color: #047857;
+            background: rgba(5, 150, 105, 0.14);
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .empty {
+            padding: 48px 24px;
+            text-align: center;
+            color: var(--muted);
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 18px;
+        }
+
+        .items {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        @media (max-width: 900px) {
+            .hero {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .shell {
+                padding: 26px 14px 40px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .panel {
+                padding: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="shell">
+    <section class="hero">
+        <div>
+            <h1>주문 현황</h1>
+            <p>모바일 앱 주문과 관리자 주문을 한 화면에서 빠르게 확인할 수 있습니다.</p>
+        </div>
+        <div class="actions">
+            <div class="chip" id="last-updated">업데이트 대기 중</div>
+            <button id="refresh-button" type="button">새로고침</button>
+        </div>
+    </section>
+
+    <section class="stats">
+        <article class="card">
+            <div class="label"><span class="dot" style="background: var(--accent);"></span>전체 주문</div>
+            <div class="value" id="total-count">0</div>
+        </article>
+        <article class="card">
+            <div class="label"><span class="dot" style="background: var(--waiting);"></span>대기</div>
+            <div class="value" id="waiting-count">0</div>
+        </article>
+        <article class="card">
+            <div class="label"><span class="dot" style="background: var(--delivering);"></span>배송 중</div>
+            <div class="value" id="delivering-count">0</div>
+        </article>
+        <article class="card">
+            <div class="label"><span class="dot" style="background: var(--completed);"></span>완료</div>
+            <div class="value" id="completed-count">0</div>
+        </article>
+    </section>
+
+    <section class="panel">
+        <div class="panel-head">
+            <div>
+                <h2>최근 주문 목록</h2>
+                <p>주문 상태와 금액, 주문 항목을 함께 확인할 수 있습니다.</p>
+            </div>
+        </div>
+        <div id="content"></div>
+    </section>
+</main>
+
+<script>
+    const statusLabels = {
+        WAITING: "대기",
+        DELIVERING: "배송 중",
+        COMPLETED: "완료"
+    };
+
+    const sourceLabels = {
+        MOBILE_APP: "모바일 앱",
+        ADMIN: "관리자"
+    };
+
+    const statusClasses = {
+        WAITING: "status-waiting",
+        DELIVERING: "status-delivering",
+        COMPLETED: "status-completed"
+    };
+
+    const currency = new Intl.NumberFormat("ko-KR");
+
+    async function loadOrders() {
+        const content = document.getElementById("content");
+        const refreshButton = document.getElementById("refresh-button");
+
+        refreshButton.disabled = true;
+        refreshButton.textContent = "불러오는 중...";
+
+        try {
+            const response = await fetch("/api/admin/orders", {
+                headers: {
+                    "Accept": "application/json"
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error("주문 정보를 불러오지 못했습니다.");
+            }
+
+            const orders = await response.json();
+            renderSummary(orders);
+            renderTable(orders, content);
+            document.getElementById("last-updated").textContent =
+                `${new Date().toLocaleString("ko-KR")} 기준`;
+        } catch (error) {
+            content.innerHTML = `<div class="empty">${error.message}</div>`;
+        } finally {
+            refreshButton.disabled = false;
+            refreshButton.textContent = "새로고침";
+        }
+    }
+
+    function renderSummary(orders) {
+        const counts = orders.reduce((acc, order) => {
+            acc.total += 1;
+            acc[order.status] = (acc[order.status] || 0) + 1;
+            return acc;
+        }, { total: 0, WAITING: 0, DELIVERING: 0, COMPLETED: 0 });
+
+        document.getElementById("total-count").textContent = counts.total;
+        document.getElementById("waiting-count").textContent = counts.WAITING;
+        document.getElementById("delivering-count").textContent = counts.DELIVERING;
+        document.getElementById("completed-count").textContent = counts.COMPLETED;
+    }
+
+    function renderTable(orders, container) {
+        if (!orders.length) {
+            container.innerHTML = '<div class="empty">아직 등록된 주문이 없습니다.</div>';
+            return;
+        }
+
+        const rows = orders.map((order) => `
+            <tr>
+                <td>
+                    <strong>${escapeHtml(order.customerName)}</strong>
+                    <div class="muted">${escapeHtml(order.phoneNumber)}</div>
+                </td>
+                <td>${escapeHtml(sourceLabels[order.source] || order.source)}</td>
+                <td>
+                    <span class="status-pill ${statusClasses[order.status] || ""}">
+                        ${statusLabels[order.status] || order.status}
+                    </span>
+                </td>
+                <td>${currency.format(order.totalPrice)}원</td>
+                <td>${escapeHtml(order.deliveryAddress)}</td>
+                <td>
+                    <div class="items">
+                        ${order.items.map((item) =>
+                            `<span>${escapeHtml(item.name)} ${item.quantity}개</span>`
+                        ).join("")}
+                    </div>
+                </td>
+                <td>${formatDate(order.createdAt)}</td>
+            </tr>
+        `).join("");
+
+        container.innerHTML = `
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>주문자</th>
+                            <th>주문 경로</th>
+                            <th>상태</th>
+                            <th>총 금액</th>
+                            <th>배송지</th>
+                            <th>주문 항목</th>
+                            <th>생성 시각</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    function formatDate(value) {
+        if (!value) {
+            return "-";
+        }
+
+        return new Date(value).toLocaleString("ko-KR");
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    document.getElementById("refresh-button").addEventListener("click", loadOrders);
+    loadOrders();
+    setInterval(loadOrders, 10000);
+</script>
+</body>
+</html>

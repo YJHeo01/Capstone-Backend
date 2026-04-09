@@ -1,0 +1,4 @@
+com\example\orderserver\repository\RobotDispatchRepository.class
+com\example\orderserver\service\DatabaseRobotGateway.class
+com\example\orderserver\dto\UpdateOrderRequest.class
+com\example\orderserver\repository\OrderRepository.class
