@@ -5,6 +5,7 @@ import com.example.orderserver.domain.OrderItem;
 import com.example.orderserver.domain.RobotDispatch;
 import com.example.orderserver.dto.OrderItemResponse;
 import com.example.orderserver.dto.OrderResponse;
+import com.example.orderserver.dto.OrderStatusResponse;
 import com.example.orderserver.dto.RobotDispatchResponse;
 
 public final class OrderMapper {
@@ -35,6 +36,15 @@ public final class OrderMapper {
                 dispatch.getTargetRobot(),
                 dispatch.getMessage(),
                 dispatch.getDispatchedAt()
+        );
+    }
+
+    public static OrderStatusResponse toStatusResponse(Order order) {
+        return new OrderStatusResponse(
+                order.getId(),
+                order.getStatus(),
+                order.isSentToRobot(),
+                order.getUpdatedAt()
         );
     }
 

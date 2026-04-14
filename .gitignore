@@ -1,0 +1,37 @@
+# Maven / Java
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Logs
+*.log
+logs/
+
+# Spring Boot
+.springBeans
+
+# IDE
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+.factorypath
+.apt_generated/
+.sts4-cache/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local databases
+*.mv.db
+*.trace.db
+data/
+
+# Temporary files
+*.tmp
+*.temp

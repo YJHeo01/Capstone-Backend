@@ -4,6 +4,7 @@ import com.example.orderserver.dto.CreateOrderRequest;
 import com.example.orderserver.dto.OrderResponse;
 import com.example.orderserver.dto.UpdateOrderRequest;
 import com.example.orderserver.dto.UpdateOrderStatusRequest;
+import com.example.orderserver.service.OrderRealtimeService;
 import com.example.orderserver.service.OrderService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -26,9 +27,11 @@ import java.util.UUID;
 public class AdminOrderController {
 
     private final OrderService orderService;
+    private final OrderRealtimeService orderRealtimeService;
 
-    public AdminOrderController(OrderService orderService) {
+    public AdminOrderController(OrderService orderService, OrderRealtimeService orderRealtimeService) {
         this.orderService = orderService;
+        this.orderRealtimeService = orderRealtimeService;
     }
 
     @GetMapping
@@ -46,7 +49,9 @@ public class AdminOrderController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public OrderResponse createAdminOrder(@Valid @RequestBody CreateOrderRequest request) {
-        return OrderMapper.toResponse(orderService.createAdminOrder(request));
+        OrderResponse response = OrderMapper.toResponse(orderService.createAdminOrder(request));
+        orderRealtimeService.publishOrderUpdate(response);
+        return response;
     }
 
     @PutMapping("/{orderId}")
@@ -54,7 +59,9 @@ public class AdminOrderController {
             @PathVariable UUID orderId,
             @Valid @RequestBody UpdateOrderRequest request
     ) {
-        return OrderMapper.toResponse(orderService.updateOrder(orderId, request));
+        OrderResponse response = OrderMapper.toResponse(orderService.updateOrder(orderId, request));
+        orderRealtimeService.publishOrderUpdate(response);
+        return response;
     }
 
     @PatchMapping("/{orderId}/status")
@@ -62,12 +69,15 @@ public class AdminOrderController {
             @PathVariable UUID orderId,
             @Valid @RequestBody UpdateOrderStatusRequest request
     ) {
-        return OrderMapper.toResponse(orderService.updateOrderStatus(orderId, request.status()));
+        OrderResponse response = OrderMapper.toResponse(orderService.updateOrderStatus(orderId, request.status()));
+        orderRealtimeService.publishOrderUpdate(response);
+        return response;
     }
 
     @DeleteMapping("/{orderId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteOrder(@PathVariable UUID orderId) {
         orderService.deleteOrder(orderId);
+        orderRealtimeService.publishOrderDeleted(orderId);
     }
 }
