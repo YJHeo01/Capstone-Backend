@@ -94,6 +94,13 @@
             box-shadow: 0 18px 32px rgba(194, 65, 12, 0.3);
         }
 
+        button:disabled {
+            cursor: wait;
+            opacity: 0.68;
+            transform: none;
+            box-shadow: none;
+        }
+
         .stats {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -230,6 +237,68 @@
             gap: 6px;
         }
 
+        .action-button {
+            width: 100%;
+            max-width: 124px;
+            padding: 10px 14px;
+            font-size: 0.84rem;
+            box-shadow: none;
+        }
+
+        .action-button.secondary {
+            background: rgba(255, 255, 255, 0.96);
+            color: var(--ink);
+            border: 1px solid var(--line);
+        }
+
+        .action-button.secondary:hover {
+            box-shadow: none;
+        }
+
+        .action-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .action-text {
+            display: inline-block;
+            color: var(--muted);
+            font-size: 0.88rem;
+            font-weight: 600;
+        }
+
+        .feedback {
+            display: none;
+            margin-bottom: 16px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            font-size: 0.94rem;
+            font-weight: 600;
+        }
+
+        .feedback.show {
+            display: block;
+        }
+
+        .feedback.info {
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.1);
+            border: 1px solid rgba(37, 99, 235, 0.16);
+        }
+
+        .feedback.success {
+            color: #065f46;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.18);
+        }
+
+        .feedback.error {
+            color: #b91c1c;
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.18);
+        }
+
         @media (max-width: 900px) {
             .hero {
                 flex-direction: column;
@@ -292,9 +361,10 @@
         <div class="panel-head">
             <div>
                 <h2>최근 주문 목록</h2>
-                <p>주문 상태와 금액, 주문 항목을 함께 확인할 수 있습니다.</p>
+                <p>주문 상태와 금액, 주문 항목을 함께 확인하고 바로 상태를 변경할 수 있습니다.</p>
             </div>
         </div>
+        <div id="admin-feedback" class="feedback"></div>
         <div id="content"></div>
     </section>
 </main>
@@ -317,7 +387,37 @@
         COMPLETED: "status-completed"
     };
 
+    const statusActions = {
+        WAITING: [
+            {
+                status: "DELIVERING",
+                label: "배송 시작",
+                tone: "primary"
+            }
+        ],
+        DELIVERING: [
+            {
+                status: "WAITING",
+                label: "대기로 되돌리기",
+                tone: "secondary"
+            },
+            {
+                status: "COMPLETED",
+                label: "완료 처리",
+                tone: "primary"
+            }
+        ],
+        COMPLETED: [
+            {
+                status: "DELIVERING",
+                label: "배송 중으로 되돌리기",
+                tone: "secondary"
+            }
+        ]
+    };
+
     const currency = new Intl.NumberFormat("ko-KR");
+    const updatingOrders = new Set();
 
     async function loadOrders() {
         const content = document.getElementById("content");
@@ -391,6 +491,7 @@
                     </div>
                 </td>
                 <td>${formatDate(order.createdAt)}</td>
+                <td>${renderActionCell(order)}</td>
             </tr>
         `).join("");
 
@@ -406,12 +507,103 @@
                             <th>배송지</th>
                             <th>주문 항목</th>
                             <th>생성 시각</th>
+                            <th>관리</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
                 </table>
             </div>
         `;
+
+        attachActionHandlers(container);
+    }
+
+    function renderActionCell(order) {
+        const actions = statusActions[order.status] || [];
+        if (!actions.length) {
+            return '<span class="action-text">처리 완료</span>';
+        }
+
+        const isUpdating = updatingOrders.has(order.id);
+        const disabled = isUpdating ? "disabled" : "";
+        const buttons = actions.map((action) => {
+            const buttonLabel = isUpdating ? "처리 중..." : action.label;
+            const className = action.tone === "secondary"
+                ? "action-button secondary"
+                : "action-button";
+
+            return `
+                <button
+                    type="button"
+                    class="${className}"
+                    data-order-id="${order.id}"
+                    data-next-status="${action.status}"
+                    ${disabled}
+                >
+                    ${buttonLabel}
+                </button>
+            `;
+        }).join("");
+
+        return `<div class="action-group">${buttons}</div>`;
+    }
+
+    function attachActionHandlers(container) {
+        container.querySelectorAll(".action-button").forEach((button) => {
+            button.addEventListener("click", async () => {
+                await updateOrderStatus(button.dataset.orderId, button.dataset.nextStatus);
+            });
+        });
+    }
+
+    async function updateOrderStatus(orderId, nextStatus) {
+        if (updatingOrders.has(orderId)) {
+            return;
+        }
+
+        updatingOrders.add(orderId);
+        showFeedback("주문 상태를 변경하는 중입니다.", "info");
+        await loadOrders();
+
+        try {
+            const response = await fetch(`/api/admin/orders/${orderId}/status`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify({ status: nextStatus })
+            });
+
+            if (!response.ok) {
+                let errorMessage = "주문 상태를 변경하지 못했습니다.";
+
+                try {
+                    const errorBody = await response.json();
+                    if (errorBody && errorBody.message) {
+                        errorMessage = errorBody.message;
+                    }
+                } catch (error) {
+                    // Ignore JSON parse errors and use the default message.
+                }
+
+                throw new Error(errorMessage);
+            }
+
+            const updatedOrder = await response.json();
+            showFeedback(`주문 상태가 ${statusLabels[updatedOrder.status] || updatedOrder.status}(으)로 변경되었습니다.`, "success");
+        } catch (error) {
+            showFeedback(error.message, "error");
+        } finally {
+            updatingOrders.delete(orderId);
+            await loadOrders();
+        }
+    }
+
+    function showFeedback(message, tone = "success") {
+        const feedback = document.getElementById("admin-feedback");
+        feedback.textContent = message;
+        feedback.className = `feedback show ${tone}`;
     }
 
     function formatDate(value) {

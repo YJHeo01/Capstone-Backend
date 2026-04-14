@@ -104,8 +104,8 @@ public class OrderService {
 
         boolean valid = switch (currentStatus) {
             case WAITING -> newStatus == OrderStatus.DELIVERING;
-            case DELIVERING -> newStatus == OrderStatus.COMPLETED;
-            case COMPLETED -> false;
+            case DELIVERING -> newStatus == OrderStatus.WAITING || newStatus == OrderStatus.COMPLETED;
+            case COMPLETED -> newStatus == OrderStatus.DELIVERING;
         };
 
         if (!valid) {

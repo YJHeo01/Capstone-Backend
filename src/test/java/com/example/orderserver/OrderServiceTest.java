@@ -76,6 +76,17 @@ class OrderServiceTest {
     }
 
     @Test
+    void statusShouldBeAbleToMoveBackByOneStep() {
+        var order = orderService.createMobileOrder(sampleCreateRequest());
+
+        orderService.updateOrderStatus(order.getId(), OrderStatus.DELIVERING);
+        orderService.updateOrderStatus(order.getId(), OrderStatus.COMPLETED);
+        var reverted = orderService.updateOrderStatus(order.getId(), OrderStatus.DELIVERING);
+
+        assertEquals(OrderStatus.DELIVERING, reverted.getStatus());
+    }
+
+    @Test
     void invalidStatusJumpShouldFail() {
         var order = orderService.createMobileOrder(sampleCreateRequest());
 
