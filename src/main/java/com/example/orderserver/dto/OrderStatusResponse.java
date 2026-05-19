@@ -9,6 +9,7 @@ public record OrderStatusResponse(
         UUID orderId,
         OrderStatus status,
         boolean sentToRobot,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        RobotLocationResponse robotLocation
 ) {
 }

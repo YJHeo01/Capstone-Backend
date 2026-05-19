@@ -168,6 +168,32 @@
             font-size: 0.95rem;
         }
 
+        .robot-location {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 22px;
+            padding: 18px 20px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.72);
+        }
+
+        .robot-location .label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .robot-location .value {
+            margin-top: 8px;
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+
         .table-wrap {
             overflow-x: auto;
         }
@@ -308,6 +334,11 @@
             .stats {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+
+            .robot-location {
+                align-items: flex-start;
+                flex-direction: column;
+            }
         }
 
         @media (max-width: 640px) {
@@ -355,6 +386,14 @@
             <div class="label"><span class="dot" style="background: var(--completed);"></span>완료</div>
             <div class="value" id="completed-count">0</div>
         </article>
+    </section>
+
+    <section class="robot-location">
+        <div>
+            <div class="label"><span class="dot" style="background: var(--delivering);"></span>로봇 현재 위치</div>
+            <div class="value" id="robot-location-text">아직 수신된 위치가 없습니다.</div>
+        </div>
+        <div class="muted" id="robot-location-updated">위치 업데이트 대기 중</div>
     </section>
 
     <section class="panel">
@@ -448,6 +487,44 @@
             refreshButton.disabled = false;
             refreshButton.textContent = "새로고침";
         }
+    }
+
+    async function loadRobotLocation() {
+        const locationText = document.getElementById("robot-location-text");
+        const updatedText = document.getElementById("robot-location-updated");
+
+        try {
+            const response = await fetch("/api/robot/location", {
+                headers: {
+                    "Accept": "application/json"
+                }
+            });
+
+            if (response.status === 404) {
+                locationText.textContent = "아직 수신된 위치가 없습니다.";
+                updatedText.textContent = "위치 업데이트 대기 중";
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error("로봇 위치를 불러오지 못했습니다.");
+            }
+
+            const location = await response.json();
+            locationText.textContent =
+                `위도 ${formatCoordinate(location.latitude)}, 경도 ${formatCoordinate(location.longitude)}`;
+            updatedText.textContent = `마지막 갱신: ${formatDate(location.updatedAt)}`;
+        } catch (error) {
+            locationText.textContent = error.message;
+            updatedText.textContent = "잠시 후 다시 시도해 주세요.";
+        }
+    }
+
+    async function refreshDashboard() {
+        await Promise.all([
+            loadOrders(),
+            loadRobotLocation()
+        ]);
     }
 
     function renderSummary(orders) {
@@ -596,7 +673,7 @@
             showFeedback(error.message, "error");
         } finally {
             updatingOrders.delete(orderId);
-            await loadOrders();
+            await refreshDashboard();
         }
     }
 
@@ -614,6 +691,10 @@
         return new Date(value).toLocaleString("ko-KR");
     }
 
+    function formatCoordinate(value) {
+        return Number(value).toFixed(6);
+    }
+
     function escapeHtml(value) {
         return String(value ?? "")
             .replaceAll("&", "&amp;")
@@ -623,9 +704,9 @@
             .replaceAll("'", "&#39;");
     }
 
-    document.getElementById("refresh-button").addEventListener("click", loadOrders);
-    loadOrders();
-    setInterval(loadOrders, 10000);
+    document.getElementById("refresh-button").addEventListener("click", refreshDashboard);
+    refreshDashboard();
+    setInterval(refreshDashboard, 10000);
 </script>
 </body>
 </html>
