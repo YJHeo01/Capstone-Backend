@@ -2,9 +2,12 @@ package com.example.orderserver;
 
 import com.example.orderserver.dto.CreateOrderItemRequest;
 import com.example.orderserver.dto.CreateOrderRequest;
+import com.example.orderserver.dto.RobotLocationRequest;
 import com.example.orderserver.repository.OrderRepository;
 import com.example.orderserver.repository.RobotDispatchRepository;
+import com.example.orderserver.repository.RobotLocationRepository;
 import com.example.orderserver.service.OrderService;
+import com.example.orderserver.service.RobotLocationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,9 +43,16 @@ class MobileOrderControllerTest {
     @Autowired
     private RobotDispatchRepository robotDispatchRepository;
 
+    @Autowired
+    private RobotLocationRepository robotLocationRepository;
+
+    @Autowired
+    private RobotLocationService robotLocationService;
+
     @BeforeEach
     void setUp() {
         robotDispatchRepository.deleteAll();
+        robotLocationRepository.deleteAll();
         orderRepository.deleteAll();
     }
 
@@ -66,6 +76,21 @@ class MobileOrderControllerTest {
                 .andExpect(jsonPath("$.orderId").value(order.getId().toString()))
                 .andExpect(jsonPath("$.status").value("WAITING"))
                 .andExpect(jsonPath("$.sentToRobot").value(false));
+    }
+
+    @Test
+    void mobileClientShouldFetchOrderStatusWithRobotLocation() throws Exception {
+        var order = orderService.createMobileOrder(sampleRequest());
+        robotLocationService.saveLatestLocation(
+                new RobotLocationRequest(BigDecimal.valueOf(37.375), BigDecimal.valueOf(126.632))
+        );
+
+        mockMvc.perform(get("/api/orders/{orderId}/status", order.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderId").value(order.getId().toString()))
+                .andExpect(jsonPath("$.robotLocation.latitude").value(37.375))
+                .andExpect(jsonPath("$.robotLocation.longitude").value(126.632))
+                .andExpect(jsonPath("$.robotLocation.updatedAt").exists());
     }
 
     @Test

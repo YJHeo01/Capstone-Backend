@@ -3,10 +3,12 @@ package com.example.orderserver.controller;
 import com.example.orderserver.domain.Order;
 import com.example.orderserver.domain.OrderItem;
 import com.example.orderserver.domain.RobotDispatch;
+import com.example.orderserver.domain.RobotLocation;
 import com.example.orderserver.dto.OrderItemResponse;
 import com.example.orderserver.dto.OrderResponse;
 import com.example.orderserver.dto.OrderStatusResponse;
 import com.example.orderserver.dto.RobotDispatchResponse;
+import com.example.orderserver.dto.RobotLocationResponse;
 
 public final class OrderMapper {
 
@@ -39,12 +41,25 @@ public final class OrderMapper {
         );
     }
 
+    public static RobotLocationResponse toResponse(RobotLocation location) {
+        return new RobotLocationResponse(
+                location.getLatitude(),
+                location.getLongitude(),
+                location.getUpdatedAt()
+        );
+    }
+
     public static OrderStatusResponse toStatusResponse(Order order) {
+        return toStatusResponse(order, null);
+    }
+
+    public static OrderStatusResponse toStatusResponse(Order order, RobotLocation robotLocation) {
         return new OrderStatusResponse(
                 order.getId(),
                 order.getStatus(),
                 order.isSentToRobot(),
-                order.getUpdatedAt()
+                order.getUpdatedAt(),
+                robotLocation == null ? null : toResponse(robotLocation)
         );
     }
 

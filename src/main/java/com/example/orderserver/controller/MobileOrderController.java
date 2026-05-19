@@ -5,6 +5,7 @@ import com.example.orderserver.dto.OrderResponse;
 import com.example.orderserver.dto.OrderStatusResponse;
 import com.example.orderserver.service.OrderRealtimeService;
 import com.example.orderserver.service.OrderService;
+import com.example.orderserver.service.RobotLocationService;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
@@ -25,10 +26,16 @@ public class MobileOrderController {
 
     private final OrderService orderService;
     private final OrderRealtimeService orderRealtimeService;
+    private final RobotLocationService robotLocationService;
 
-    public MobileOrderController(OrderService orderService, OrderRealtimeService orderRealtimeService) {
+    public MobileOrderController(
+            OrderService orderService,
+            OrderRealtimeService orderRealtimeService,
+            RobotLocationService robotLocationService
+    ) {
         this.orderService = orderService;
         this.orderRealtimeService = orderRealtimeService;
+        this.robotLocationService = robotLocationService;
     }
 
     @PostMapping
@@ -46,7 +53,10 @@ public class MobileOrderController {
 
     @GetMapping("/{orderId}/status")
     public OrderStatusResponse getOrderStatus(@PathVariable UUID orderId) {
-        return OrderMapper.toStatusResponse(orderService.getOrder(orderId));
+        return OrderMapper.toStatusResponse(
+                orderService.getOrder(orderId),
+                robotLocationService.getLatestLocation().orElse(null)
+        );
     }
 
     @GetMapping(value = "/{orderId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
