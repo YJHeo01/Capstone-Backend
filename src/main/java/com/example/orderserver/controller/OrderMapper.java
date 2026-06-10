@@ -35,7 +35,6 @@ public final class OrderMapper {
         return new RobotDispatchResponse(
                 dispatch.getDispatchId(),
                 dispatch.getOrderId(),
-                dispatch.getTargetRobot(),
                 dispatch.getMessage(),
                 dispatch.getDispatchedAt()
         );
