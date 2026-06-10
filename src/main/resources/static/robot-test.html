@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Robot WebSocket Test</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f6f7f9;
+            color: #1f2937;
+        }
+
+        main {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        h1 {
+            margin: 0 0 16px;
+            font-size: 24px;
+        }
+
+        section {
+            margin: 16px 0;
+            padding: 16px;
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+        }
+
+        label {
+            display: block;
+            margin: 12px 0 6px;
+            font-weight: 700;
+        }
+
+        input,
+        textarea {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #9ca3af;
+            border-radius: 6px;
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        button {
+            margin: 8px 8px 0 0;
+            padding: 10px 12px;
+            border: 0;
+            border-radius: 6px;
+            background: #2563eb;
+            color: #ffffff;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        button.secondary {
+            background: #4b5563;
+        }
+
+        button.danger {
+            background: #dc2626;
+        }
+
+        pre {
+            overflow: auto;
+            min-height: 260px;
+            padding: 12px;
+            background: #111827;
+            color: #d1fae5;
+            border-radius: 8px;
+            white-space: pre-wrap;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        @media (max-width: 720px) {
+            .row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Robot WebSocket Test</h1>
+
+    <section>
+        <label for="wsUrl">WebSocket URL</label>
+        <input id="wsUrl" value="ws://localhost:8080/ws/robot">
+        <button id="connectBtn">Connect</button>
+        <button id="disconnectBtn" class="danger">Disconnect</button>
+    </section>
+
+    <section>
+        <div class="row">
+            <div>
+                <label for="virtualFromNodeId">Virtual From Node</label>
+                <input id="virtualFromNodeId" value="info_a">
+            </div>
+            <div>
+                <label for="virtualDestinationNodeId">Virtual Destination Node</label>
+                <input id="virtualDestinationNodeId" value="social_science_front">
+            </div>
+            <div>
+                <label for="orderId">Order ID</label>
+                <input id="orderId" placeholder="Auto-filled from MISSION_ROUTE">
+            </div>
+        </div>
+
+        <button id="sendVirtualRouteBtn">Send Virtual DELIVERY Route</button>
+        <button id="loadCurrentMissionBtn" class="secondary">Load Current Mission</button>
+        <button id="sendReturnRouteBtn" class="secondary">Send RETURN Route After Received</button>
+    </section>
+
+    <section>
+        <div class="row">
+            <div>
+                <label for="missionId">Mission ID</label>
+                <input id="missionId" placeholder="Auto-filled from MISSION_ROUTE">
+            </div>
+            <div>
+                <label for="sequence">Waypoint Sequence</label>
+                <input id="sequence" type="number" min="1" value="1">
+            </div>
+            <div>
+                <label for="message">Message</label>
+                <input id="message" value="test message">
+            </div>
+        </div>
+
+        <div class="row">
+            <div>
+                <label for="latitude">Latitude</label>
+                <input id="latitude" value="37.374528">
+            </div>
+            <div>
+                <label for="longitude">Longitude</label>
+                <input id="longitude" value="126.633170">
+            </div>
+            <div>
+                <label for="lastMissionType">Last Mission Type</label>
+                <input id="lastMissionType" readonly>
+            </div>
+        </div>
+
+        <button data-event="MISSION_ACK">Send ACK</button>
+        <button data-event="MISSION_STARTED">Send STARTED</button>
+        <button data-event="ARRIVED_AT_DESTINATION">Send ARRIVED</button>
+        <button data-event="RETURN_COMPLETED">Send RETURN COMPLETED</button>
+    </section>
+
+    <section>
+        <label for="customPayload">Custom Payload</label>
+        <textarea id="customPayload">{
+  "messageType": "MISSION_ACK",
+  "missionId": "",
+  "currentWaypointSequence": 1,
+  "latitude": 37.374528,
+  "longitude": 126.633170,
+  "message": "route received"
+}</textarea>
+        <button id="sendCustomBtn" class="secondary">Send Custom JSON</button>
+    </section>
+
+    <section>
+        <button id="clearLogBtn" class="secondary">Clear Log</button>
+        <pre id="log"></pre>
+    </section>
+</main>
+
+<script>
+    let ws = null;
+
+    const logEl = document.getElementById("log");
+    const orderIdEl = document.getElementById("orderId");
+    const missionIdEl = document.getElementById("missionId");
+    const missionTypeEl = document.getElementById("lastMissionType");
+    const sequenceEl = document.getElementById("sequence");
+    const latitudeEl = document.getElementById("latitude");
+    const longitudeEl = document.getElementById("longitude");
+    const messageEl = document.getElementById("message");
+
+    function log(prefix, value) {
+        const line = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+        logEl.textContent += `[${new Date().toLocaleTimeString()}] ${prefix}\n${line}\n\n`;
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function connect() {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            log("INFO", "Already connected.");
+            return;
+        }
+
+        ws = new WebSocket(document.getElementById("wsUrl").value);
+        ws.onopen = () => log("OPEN", "Connected to robot websocket.");
+        ws.onclose = () => log("CLOSE", "Disconnected.");
+        ws.onerror = () => log("ERROR", "WebSocket error. Check server logs and URL.");
+        ws.onmessage = (event) => {
+            log("SERVER -> ROBOT", event.data);
+            try {
+                const payload = JSON.parse(event.data);
+                if (payload.messageType === "MISSION_ROUTE") {
+                    missionIdEl.value = payload.missionId;
+                    orderIdEl.value = payload.orderId;
+                    missionTypeEl.value = payload.missionType;
+                    const firstWaypoint = payload.waypoints && payload.waypoints[0];
+                    if (firstWaypoint) {
+                        sequenceEl.value = firstWaypoint.sequence;
+                        latitudeEl.value = firstWaypoint.latitude;
+                        longitudeEl.value = firstWaypoint.longitude;
+                    }
+                }
+            } catch (error) {
+                log("WARN", "Server message was not JSON.");
+            }
+        };
+    }
+
+    async function postJson(url, payload) {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+        const text = await response.text();
+        let body = text;
+        try {
+            body = text ? JSON.parse(text) : null;
+        } catch (error) {
+            body = text;
+        }
+        if (!response.ok) {
+            log("HTTP ERROR", body);
+            return null;
+        }
+        log("HTTP OK", body);
+        return body;
+    }
+
+    async function sendVirtualDeliveryRoute() {
+        const body = await postJson("/api/robot/test-routes/delivery", {
+            fromNodeId: document.getElementById("virtualFromNodeId").value,
+            destinationNodeId: document.getElementById("virtualDestinationNodeId").value
+        });
+        if (body && body.mission) {
+            orderIdEl.value = body.mission.orderId;
+            missionIdEl.value = body.mission.missionId;
+            missionTypeEl.value = body.mission.type;
+        }
+    }
+
+    async function loadCurrentMission() {
+        const statusResponse = await fetch("/api/robot/status");
+        const statusText = await statusResponse.text();
+        let statusBody = statusText;
+        try {
+            statusBody = statusText ? JSON.parse(statusText) : null;
+        } catch (error) {
+            statusBody = statusText;
+        }
+        if (!statusResponse.ok) {
+            log("HTTP ERROR", statusBody);
+            return;
+        }
+        log("ROBOT STATUS", statusBody);
+
+        if (!statusBody.currentMissionId) {
+            log("INFO", "Robot has no current mission.");
+            return;
+        }
+
+        const missionResponse = await fetch(`/api/missions/${statusBody.currentMissionId}`);
+        const missionText = await missionResponse.text();
+        let missionBody = missionText;
+        try {
+            missionBody = missionText ? JSON.parse(missionText) : null;
+        } catch (error) {
+            missionBody = missionText;
+        }
+        if (!missionResponse.ok) {
+            log("HTTP ERROR", missionBody);
+            return;
+        }
+
+        log("CURRENT MISSION", missionBody);
+        fillMissionFields(missionBody);
+    }
+
+    async function sendReturnRoute() {
+        if (!orderIdEl.value) {
+            log("ERROR", "Order ID is empty. Send a virtual DELIVERY route first.");
+            return;
+        }
+        const body = await postJson(`/api/orders/${orderIdEl.value}/received`, {
+            message: "item received from robot test page"
+        });
+        if (body && body.returnMission) {
+            missionIdEl.value = body.returnMission.missionId;
+            missionTypeEl.value = body.returnMission.type;
+        }
+    }
+
+    function fillMissionFields(mission) {
+        orderIdEl.value = mission.orderId || "";
+        missionIdEl.value = mission.missionId || "";
+        missionTypeEl.value = mission.type || "";
+        const firstWaypoint = mission.waypoints && mission.waypoints[0];
+        if (firstWaypoint) {
+            sequenceEl.value = firstWaypoint.sequence;
+            latitudeEl.value = firstWaypoint.latitude;
+            longitudeEl.value = firstWaypoint.longitude;
+        }
+    }
+
+    function disconnect() {
+        if (ws) {
+            ws.close();
+        }
+    }
+
+    function ensureConnected() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            log("ERROR", "WebSocket is not connected.");
+            return false;
+        }
+        return true;
+    }
+
+    function sendPayload(payload) {
+        if (!ensureConnected()) {
+            return;
+        }
+        ws.send(JSON.stringify(payload));
+        log("ROBOT -> SERVER", payload);
+    }
+
+    function sendEvent(eventType) {
+        sendPayload({
+            messageType: eventType,
+            missionId: missionIdEl.value,
+            currentWaypointSequence: Number(sequenceEl.value),
+            latitude: Number(latitudeEl.value),
+            longitude: Number(longitudeEl.value),
+            message: messageEl.value
+        });
+    }
+
+    document.getElementById("connectBtn").addEventListener("click", connect);
+    document.getElementById("disconnectBtn").addEventListener("click", disconnect);
+    document.getElementById("sendVirtualRouteBtn").addEventListener("click", sendVirtualDeliveryRoute);
+    document.getElementById("loadCurrentMissionBtn").addEventListener("click", loadCurrentMission);
+    document.getElementById("sendReturnRouteBtn").addEventListener("click", sendReturnRoute);
+    document.getElementById("sendCustomBtn").addEventListener("click", () => {
+        try {
+            sendPayload(JSON.parse(document.getElementById("customPayload").value));
+        } catch (error) {
+            log("ERROR", "Custom payload is not valid JSON.");
+        }
+    });
+    document.getElementById("clearLogBtn").addEventListener("click", () => {
+        logEl.textContent = "";
+    });
+
+    document.querySelectorAll("button[data-event]").forEach((button) => {
+        button.addEventListener("click", () => sendEvent(button.dataset.event));
+    });
+</script>
+</body>
+</html>

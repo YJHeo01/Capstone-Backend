@@ -11,8 +11,6 @@ import java.util.UUID;
 @Component
 public class DatabaseRobotGateway implements RobotGateway {
 
-    private static final String DEFAULT_ROBOT_NAME = "DELIVERY_ROBOT_01";
-
     private final RobotDispatchRepository robotDispatchRepository;
 
     public DatabaseRobotGateway(RobotDispatchRepository robotDispatchRepository) {
@@ -24,7 +22,6 @@ public class DatabaseRobotGateway implements RobotGateway {
         RobotDispatch dispatch = RobotDispatch.create(
                 UUID.randomUUID(),
                 order.getId(),
-                DEFAULT_ROBOT_NAME,
                 buildMessage(order)
         );
         return robotDispatchRepository.save(dispatch);

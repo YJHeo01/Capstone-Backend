@@ -20,8 +20,8 @@ public class RobotDispatch {
     @Column(nullable = false)
     private UUID orderId;
 
-    @Column(nullable = false, length = 50)
-    private String targetRobot;
+    @Column(name = "target_robot", nullable = false, length = 50)
+    private String dispatchTarget = Robot.SINGLE_ROBOT_KEY;
 
     @Column(nullable = false, length = 500)
     private String message;
@@ -32,15 +32,14 @@ public class RobotDispatch {
     protected RobotDispatch() {
     }
 
-    private RobotDispatch(UUID dispatchId, UUID orderId, String targetRobot, String message) {
+    private RobotDispatch(UUID dispatchId, UUID orderId, String message) {
         this.dispatchId = dispatchId;
         this.orderId = orderId;
-        this.targetRobot = targetRobot;
         this.message = message;
     }
 
-    public static RobotDispatch create(UUID dispatchId, UUID orderId, String targetRobot, String message) {
-        return new RobotDispatch(dispatchId, orderId, targetRobot, message);
+    public static RobotDispatch create(UUID dispatchId, UUID orderId, String message) {
+        return new RobotDispatch(dispatchId, orderId, message);
     }
 
     @PrePersist
@@ -54,10 +53,6 @@ public class RobotDispatch {
 
     public UUID getOrderId() {
         return orderId;
-    }
-
-    public String getTargetRobot() {
-        return targetRobot;
     }
 
     public String getMessage() {

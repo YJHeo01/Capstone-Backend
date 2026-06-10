@@ -4,19 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>주문 현황</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
         :root {
-            --bg: #f5efe6;
-            --panel: rgba(255, 252, 247, 0.88);
-            --ink: #1f2937;
-            --muted: #6b7280;
-            --line: rgba(148, 163, 184, 0.24);
-            --accent: #c2410c;
-            --accent-soft: #ffedd5;
-            --waiting: #f59e0b;
+            --bg: #f7f5f2;
+            --panel: #ffffff;
+            --ink: #172033;
+            --muted: #667085;
+            --line: #e4e7ec;
+            --accent: #b54708;
+            --accent-strong: #c2410c;
+            --accent-soft: #fff4ed;
+            --waiting: #d97706;
             --delivering: #2563eb;
-            --completed: #059669;
-            --shadow: 0 22px 60px rgba(148, 163, 184, 0.18);
+            --completed: #047857;
+            --danger: #b42318;
+            --shadow: 0 16px 38px rgba(16, 24, 40, 0.08);
         }
 
         * {
@@ -29,15 +32,14 @@
             font-family: "Segoe UI", "Malgun Gothic", sans-serif;
             color: var(--ink);
             background:
-                radial-gradient(circle at top left, rgba(194, 65, 12, 0.18), transparent 28%),
-                radial-gradient(circle at top right, rgba(37, 99, 235, 0.14), transparent 30%),
-                linear-gradient(180deg, #fff9f1 0%, var(--bg) 100%);
+                linear-gradient(180deg, rgba(255, 244, 237, 0.72), rgba(247, 245, 242, 0.88) 320px),
+                var(--bg);
         }
 
         .shell {
-            max-width: 1180px;
+            max-width: 1240px;
             margin: 0 auto;
-            padding: 40px 20px 60px;
+            padding: 36px 20px 56px;
         }
 
         .hero {
@@ -45,83 +47,89 @@
             justify-content: space-between;
             gap: 20px;
             align-items: flex-end;
-            margin-bottom: 28px;
+            margin-bottom: 24px;
         }
 
         .hero h1 {
             margin: 0;
-            font-size: clamp(2rem, 5vw, 3.2rem);
-            letter-spacing: -0.04em;
+            font-size: 2.35rem;
+            font-weight: 800;
         }
 
         .hero p {
-            margin: 10px 0 0;
+            margin: 8px 0 0;
             color: var(--muted);
             font-size: 1rem;
         }
 
         .actions {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             align-items: center;
             flex-wrap: wrap;
         }
 
         .chip,
-        button {
-            border: 0;
-            border-radius: 999px;
-            padding: 12px 18px;
-            font-size: 0.95rem;
+        button,
+        select {
+            font: inherit;
         }
 
         .chip {
-            background: rgba(255, 255, 255, 0.72);
-            color: var(--muted);
+            padding: 10px 14px;
             border: 1px solid var(--line);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.76);
+            color: var(--muted);
+            font-size: 0.9rem;
         }
 
         button {
+            border: 0;
+            border-radius: 999px;
             cursor: pointer;
-            background: linear-gradient(135deg, #ea580c, #c2410c);
+            background: var(--accent-strong);
             color: white;
-            box-shadow: 0 16px 28px rgba(194, 65, 12, 0.22);
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            font-weight: 700;
+            transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
         }
 
         button:hover {
             transform: translateY(-1px);
-            box-shadow: 0 18px 32px rgba(194, 65, 12, 0.3);
+            background: var(--accent);
         }
 
         button:disabled {
             cursor: wait;
-            opacity: 0.68;
+            opacity: 0.58;
             transform: none;
-            box-shadow: none;
+        }
+
+        .refresh-button {
+            padding: 11px 17px;
         }
 
         .stats {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 16px;
-            margin-bottom: 22px;
+            gap: 14px;
+            margin-bottom: 18px;
         }
 
         .card,
-        .panel {
+        .panel,
+        .robot-location {
             background: var(--panel);
-            border: 1px solid rgba(255, 255, 255, 0.65);
-            backdrop-filter: blur(14px);
+            border: 1px solid rgba(228, 231, 236, 0.86);
             box-shadow: var(--shadow);
         }
 
         .card {
-            border-radius: 24px;
-            padding: 20px;
+            border-radius: 8px;
+            padding: 18px;
         }
 
-        .card .label {
+        .label {
             display: inline-flex;
             align-items: center;
             gap: 8px;
@@ -130,22 +138,244 @@
         }
 
         .dot {
-            width: 10px;
-            height: 10px;
+            width: 9px;
+            height: 9px;
             border-radius: 50%;
             display: inline-block;
         }
 
         .card .value {
-            margin-top: 16px;
-            font-size: clamp(1.8rem, 4vw, 2.5rem);
+            margin-top: 12px;
+            font-size: 2.1rem;
+            font-weight: 800;
+        }
+
+        .robot-location {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 18px;
+            padding: 17px 18px;
+            border-radius: 8px;
+        }
+
+        .robot-location .value {
+            margin-top: 7px;
+            font-size: 1.02rem;
+            font-weight: 800;
+        }
+
+        .map-panel {
+            margin-bottom: 18px;
+        }
+
+        .campus-map {
+            position: relative;
+            height: 420px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #e6eef5;
+        }
+
+        .campus-map-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .campus-map svg {
+            display: none;
+        }
+
+        .campus-map .leaflet-container {
+            font: inherit;
+        }
+
+        .campus-robot-icon {
+            position: relative;
+        }
+
+        .campus-robot-icon .robot-pulse,
+        .campus-robot-icon .robot-dot {
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .campus-robot-icon .robot-pulse {
+            inset: 0;
+            background: rgba(37, 99, 235, 0.18);
+            border: 1px solid rgba(37, 99, 235, 0.3);
+            animation: robotPulse 1.8s ease-out infinite;
+        }
+
+        .campus-robot-icon .robot-dot {
+            top: 7px;
+            left: 7px;
+            width: 18px;
+            height: 18px;
+            background: var(--delivering);
+            border: 3px solid white;
+            box-shadow: 0 8px 22px rgba(37, 99, 235, 0.32);
+        }
+
+        @keyframes robotPulse {
+            0% {
+                transform: scale(0.7);
+                opacity: 0.85;
+            }
+            100% {
+                transform: scale(1.75);
+                opacity: 0;
+            }
+        }
+
+        .map-empty {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: var(--muted);
             font-weight: 700;
-            letter-spacing: -0.04em;
+            text-align: center;
+            pointer-events: none;
+            z-index: 500;
+        }
+
+        .map-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .command-panel {
+            margin-bottom: 18px;
+        }
+
+        .command-grid {
+            display: grid;
+            grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+            gap: 14px;
+        }
+
+        .command-card {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 16px;
+            background: #fff;
+        }
+
+        .command-card h3 {
+            margin: 0;
+            font-size: 0.92rem;
+            color: var(--muted);
+        }
+
+        .command-card .large {
+            margin-top: 10px;
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+
+        .mission-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .mission-item {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 14px;
+            background: #fff;
+        }
+
+        .mission-item.current {
+            border-color: rgba(37, 99, 235, 0.35);
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        .mission-item-head,
+        .mission-meta-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .mission-title {
+            font-weight: 800;
+        }
+
+        .mission-route {
+            margin-top: 8px;
+            font-weight: 800;
+        }
+
+        .mission-meta-row {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 0.86rem;
+            flex-wrap: wrap;
+        }
+
+        .mission-message {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .mission-empty {
+            padding: 24px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fafafa;
+            color: var(--muted);
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .robot-status-idle {
+            color: var(--completed);
+        }
+
+        .robot-status-busy,
+        .robot-status-delivery_assigned,
+        .robot-status-returning {
+            color: var(--delivering);
+        }
+
+        .mission-status-created,
+        .mission-status-dispatched,
+        .mission-status-acked {
+            color: #92400e;
+            background: rgba(245, 158, 11, 0.14);
+        }
+
+        .mission-status-in_progress,
+        .mission-status-arrived {
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.12);
+        }
+
+        .mission-status-completed {
+            color: #047857;
+            background: rgba(5, 150, 105, 0.14);
+        }
+
+        .mission-status-failed,
+        .mission-status-canceled {
+            color: var(--danger);
+            background: rgba(244, 63, 94, 0.1);
         }
 
         .panel {
-            border-radius: 28px;
-            padding: 24px;
+            border-radius: 8px;
+            padding: 22px;
             overflow: hidden;
         }
 
@@ -154,44 +384,18 @@
             justify-content: space-between;
             gap: 16px;
             align-items: center;
-            margin-bottom: 18px;
+            margin-bottom: 16px;
         }
 
         .panel-head h2 {
             margin: 0;
-            font-size: 1.3rem;
+            font-size: 1.22rem;
         }
 
         .panel-head p {
-            margin: 6px 0 0;
+            margin: 5px 0 0;
             color: var(--muted);
-            font-size: 0.95rem;
-        }
-
-        .robot-location {
-            display: flex;
-            justify-content: space-between;
-            gap: 16px;
-            align-items: center;
-            margin-bottom: 22px;
-            padding: 18px 20px;
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.72);
-        }
-
-        .robot-location .label {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--muted);
-            font-size: 0.92rem;
-        }
-
-        .robot-location .value {
-            margin-top: 8px;
-            font-size: 1.05rem;
-            font-weight: 700;
+            font-size: 0.94rem;
         }
 
         .table-wrap {
@@ -200,34 +404,33 @@
 
         table {
             width: 100%;
+            min-width: 1080px;
             border-collapse: collapse;
-            min-width: 860px;
         }
 
         th,
         td {
-            padding: 16px 14px;
+            padding: 15px 13px;
             text-align: left;
             border-bottom: 1px solid var(--line);
-            font-size: 0.95rem;
+            font-size: 0.94rem;
             vertical-align: top;
         }
 
         th {
             color: var(--muted);
-            font-weight: 600;
-            font-size: 0.88rem;
+            font-size: 0.86rem;
+            font-weight: 700;
         }
 
         .status-pill {
             display: inline-flex;
-            align-items: center;
+            min-width: 82px;
             justify-content: center;
-            min-width: 92px;
-            padding: 8px 12px;
+            padding: 7px 10px;
             border-radius: 999px;
-            font-size: 0.82rem;
-            font-weight: 700;
+            font-size: 0.8rem;
+            font-weight: 800;
         }
 
         .status-waiting {
@@ -250,57 +453,27 @@
         }
 
         .empty {
-            padding: 48px 24px;
+            padding: 44px 20px;
             text-align: center;
             color: var(--muted);
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 18px;
+            background: #fafafa;
+            border: 1px solid var(--line);
+            border-radius: 8px;
         }
 
         .items {
             display: flex;
             flex-direction: column;
-            gap: 6px;
-        }
-
-        .action-button {
-            width: 100%;
-            max-width: 124px;
-            padding: 10px 14px;
-            font-size: 0.84rem;
-            box-shadow: none;
-        }
-
-        .action-button.secondary {
-            background: rgba(255, 255, 255, 0.96);
-            color: var(--ink);
-            border: 1px solid var(--line);
-        }
-
-        .action-button.secondary:hover {
-            box-shadow: none;
-        }
-
-        .action-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .action-text {
-            display: inline-block;
-            color: var(--muted);
-            font-size: 0.88rem;
-            font-weight: 600;
+            gap: 5px;
         }
 
         .feedback {
             display: none;
-            margin-bottom: 16px;
-            padding: 14px 16px;
-            border-radius: 16px;
-            font-size: 0.94rem;
-            font-weight: 600;
+            margin-bottom: 14px;
+            padding: 13px 15px;
+            border-radius: 8px;
+            font-size: 0.93rem;
+            font-weight: 700;
         }
 
         .feedback.show {
@@ -320,30 +493,86 @@
         }
 
         .feedback.error {
-            color: #b91c1c;
-            background: rgba(239, 68, 68, 0.12);
-            border: 1px solid rgba(239, 68, 68, 0.18);
+            color: var(--danger);
+            background: rgba(244, 63, 94, 0.1);
+            border: 1px solid rgba(244, 63, 94, 0.16);
+        }
+
+        .action-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 230px;
+        }
+
+        .route-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .route-controls label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        select {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 9px 10px;
+            background: white;
+            color: var(--ink);
+            font-size: 0.9rem;
+        }
+
+        .action-button {
+            width: 100%;
+            padding: 10px 13px;
+            font-size: 0.86rem;
+        }
+
+        .action-button.secondary {
+            background: white;
+            color: var(--ink);
+            border: 1px solid var(--line);
+        }
+
+        .action-button.secondary:hover {
+            background: #f9fafb;
+        }
+
+        .action-text {
+            display: inline-block;
+            color: var(--muted);
+            font-size: 0.88rem;
+            font-weight: 700;
         }
 
         @media (max-width: 900px) {
-            .hero {
+            .hero,
+            .panel-head,
+            .robot-location {
+                align-items: flex-start;
                 flex-direction: column;
-                align-items: stretch;
             }
 
             .stats {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
-            .robot-location {
-                align-items: flex-start;
-                flex-direction: column;
+            .command-grid {
+                grid-template-columns: 1fr;
             }
         }
 
         @media (max-width: 640px) {
             .shell {
-                padding: 26px 14px 40px;
+                padding: 24px 12px 38px;
             }
 
             .stats {
@@ -351,7 +580,11 @@
             }
 
             .panel {
-                padding: 18px;
+                padding: 16px;
+            }
+
+            .campus-map {
+                height: 340px;
             }
         }
     </style>
@@ -361,11 +594,11 @@
     <section class="hero">
         <div>
             <h1>주문 현황</h1>
-            <p>모바일 앱 주문과 관리자 주문을 한 화면에서 빠르게 확인할 수 있습니다.</p>
+            <p>대기 주문에 캠퍼스 출발지와 목적지를 지정해 로봇 배송 미션을 보낼 수 있습니다.</p>
         </div>
         <div class="actions">
             <div class="chip" id="last-updated">업데이트 대기 중</div>
-            <button id="refresh-button" type="button">새로고침</button>
+            <button class="refresh-button" id="refresh-button" type="button">새로고침</button>
         </div>
     </section>
 
@@ -396,11 +629,41 @@
         <div class="muted" id="robot-location-updated">위치 업데이트 대기 중</div>
     </section>
 
+    <section class="panel map-panel">
+        <div class="panel-head">
+            <div>
+                <h2>캠퍼스 로봇 지도</h2>
+                <p>캠퍼스 노드와 이동 가능 간선을 기준으로 로봇의 최신 위치를 표시합니다.</p>
+            </div>
+        </div>
+        <div class="campus-map" id="campus-map">
+            <div id="campus-map-leaflet" class="campus-map-canvas" role="img" aria-label="캠퍼스 실제 지도"></div>
+            <svg id="campus-map-svg" viewBox="0 0 1000 560" role="img" aria-label="캠퍼스 로봇 위치 지도"></svg>
+            <div class="map-empty" id="campus-map-empty">캠퍼스 맵을 불러오는 중입니다.</div>
+        </div>
+        <div class="map-meta">
+            <span id="campus-map-summary">노드 0개, 간선 0개</span>
+            <span id="campus-map-robot-summary">로봇 위치 대기 중</span>
+        </div>
+    </section>
+
+    <section class="panel command-panel">
+        <div class="panel-head">
+            <div>
+                <h2>로봇 명령 현황</h2>
+                <p>로봇이 현재 수행 중인 배송/복귀 미션과 최근 수신 명령을 확인합니다.</p>
+            </div>
+        </div>
+        <div id="robot-command-content">
+            <div class="mission-empty">로봇 명령 현황을 불러오는 중입니다.</div>
+        </div>
+    </section>
+
     <section class="panel">
         <div class="panel-head">
             <div>
                 <h2>최근 주문 목록</h2>
-                <p>주문 상태와 금액, 주문 항목을 함께 확인하고 바로 상태를 변경할 수 있습니다.</p>
+                <p>WAITING 상태의 주문은 출발지와 목적지를 선택해 로봇에게 배송 미션을 전송합니다.</p>
             </div>
         </div>
         <div id="admin-feedback" class="feedback"></div>
@@ -408,6 +671,7 @@
     </section>
 </main>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     const statusLabels = {
         WAITING: "대기",
@@ -415,8 +679,39 @@
         COMPLETED: "완료"
     };
 
+    const robotStatusLabels = {
+        IDLE: "대기 가능",
+        DELIVERY_ASSIGNED: "배송 배정됨",
+        BUSY: "배송 수행 중",
+        RETURNING: "복귀 중"
+    };
+
+    const missionTypeLabels = {
+        DELIVERY: "배송",
+        RETURN: "복귀"
+    };
+
+    const missionStatusLabels = {
+        CREATED: "생성됨",
+        DISPATCHED: "전송됨",
+        ACKED: "수신 확인",
+        IN_PROGRESS: "이동 중",
+        ARRIVED: "도착",
+        COMPLETED: "완료",
+        FAILED: "실패",
+        CANCELED: "취소"
+    };
+
+    const activeMissionStatuses = new Set([
+        "CREATED",
+        "DISPATCHED",
+        "ACKED",
+        "IN_PROGRESS",
+        "ARRIVED"
+    ]);
+
     const sourceLabels = {
-        MOBILE_APP: "모바일 앱",
+        MOBILE_APP: "모바일",
         ADMIN: "관리자"
     };
 
@@ -427,36 +722,44 @@
     };
 
     const statusActions = {
-        WAITING: [
-            {
-                status: "DELIVERING",
-                label: "배송 시작",
-                tone: "primary"
-            }
-        ],
         DELIVERING: [
-            {
-                status: "WAITING",
-                label: "대기로 되돌리기",
-                tone: "secondary"
-            },
-            {
-                status: "COMPLETED",
-                label: "완료 처리",
-                tone: "primary"
-            }
+            { status: "WAITING", label: "대기로 되돌리기", tone: "secondary" },
+            { status: "COMPLETED", label: "완료 처리", tone: "primary" }
         ],
         COMPLETED: [
-            {
-                status: "DELIVERING",
-                label: "배송 중으로 되돌리기",
-                tone: "secondary"
-            }
+            { status: "DELIVERING", label: "배송 중으로 되돌리기", tone: "secondary" }
         ]
     };
 
+    const DEFAULT_ROBOT_ID = "SINGLE_ROBOT";
+    const DEFAULT_FROM_NODE_ID = "info_a";
+    const DEFAULT_TO_NODE_ID = "social_science_front";
     const currency = new Intl.NumberFormat("ko-KR");
     const updatingOrders = new Set();
+    const assigningOrders = new Set();
+    let campusNodes = [];
+    let campusEdges = [];
+    let currentRobotLocation = null;
+    let currentRobotStatus = null;
+    let currentMissions = [];
+    let campusMapInstance = null;
+    let campusMapLayer = null;
+    let campusMapBoundsInitialized = false;
+
+    async function loadCampusMap() {
+        const response = await fetch("/api/campus-map", {
+            headers: { "Accept": "application/json" }
+        });
+
+        if (!response.ok) {
+            throw new Error("캠퍼스 맵을 불러오지 못했습니다.");
+        }
+
+        const map = await response.json();
+        campusNodes = map.nodes || [];
+        campusEdges = map.edges || [];
+        renderCampusMap();
+    }
 
     async function loadOrders() {
         const content = document.getElementById("content");
@@ -467,9 +770,7 @@
 
         try {
             const response = await fetch("/api/admin/orders", {
-                headers: {
-                    "Accept": "application/json"
-                }
+                headers: { "Accept": "application/json" }
             });
 
             if (!response.ok) {
@@ -482,7 +783,7 @@
             document.getElementById("last-updated").textContent =
                 `${new Date().toLocaleString("ko-KR")} 기준`;
         } catch (error) {
-            content.innerHTML = `<div class="empty">${error.message}</div>`;
+            content.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
         } finally {
             refreshButton.disabled = false;
             refreshButton.textContent = "새로고침";
@@ -495,14 +796,14 @@
 
         try {
             const response = await fetch("/api/robot/location", {
-                headers: {
-                    "Accept": "application/json"
-                }
+                headers: { "Accept": "application/json" }
             });
 
             if (response.status === 404) {
                 locationText.textContent = "아직 수신된 위치가 없습니다.";
                 updatedText.textContent = "위치 업데이트 대기 중";
+                currentRobotLocation = null;
+                renderCampusMap();
                 return;
             }
 
@@ -511,20 +812,415 @@
             }
 
             const location = await response.json();
+            currentRobotLocation = location;
             locationText.textContent =
                 `위도 ${formatCoordinate(location.latitude)}, 경도 ${formatCoordinate(location.longitude)}`;
             updatedText.textContent = `마지막 갱신: ${formatDate(location.updatedAt)}`;
+            renderCampusMap();
         } catch (error) {
             locationText.textContent = error.message;
             updatedText.textContent = "잠시 후 다시 시도해 주세요.";
+            currentRobotLocation = null;
+            renderCampusMap();
         }
+    }
+
+    async function loadRobotCommandStatus() {
+        const container = document.getElementById("robot-command-content");
+
+        try {
+            const [robotResponse, missionsResponse] = await Promise.all([
+                fetch("/api/robot/status", {
+                    headers: { "Accept": "application/json" }
+                }),
+                fetch("/api/missions", {
+                    headers: { "Accept": "application/json" }
+                })
+            ]);
+
+            if (!robotResponse.ok) {
+                throw new Error("로봇 상태를 불러오지 못했습니다.");
+            }
+
+            if (!missionsResponse.ok) {
+                throw new Error("로봇 명령 목록을 불러오지 못했습니다.");
+            }
+
+            currentRobotStatus = await robotResponse.json();
+            currentMissions = await missionsResponse.json();
+            renderRobotCommandStatus(container);
+        } catch (error) {
+            currentRobotStatus = null;
+            currentMissions = [];
+            if (container) {
+                container.innerHTML = `<div class="mission-empty">${escapeHtml(error.message)}</div>`;
+            }
+        }
+    }
+
+    function renderLegacyCampusMap() {
+        const svg = document.getElementById("campus-map-svg");
+        const empty = document.getElementById("campus-map-empty");
+        const summary = document.getElementById("campus-map-summary");
+        const robotSummary = document.getElementById("campus-map-robot-summary");
+
+        if (!svg || !empty || !summary || !robotSummary) {
+            return;
+        }
+
+        summary.textContent = `노드 ${campusNodes.length}개, 간선 ${campusEdges.length}개`;
+
+        if (!campusNodes.length) {
+            svg.innerHTML = "";
+            empty.textContent = "캠퍼스 맵을 불러오는 중입니다.";
+            empty.style.display = "flex";
+            robotSummary.textContent = "로봇 위치 대기 중";
+            return;
+        }
+
+        const points = campusNodes.map((node) => ({
+            latitude: Number(node.latitude),
+            longitude: Number(node.longitude)
+        }));
+
+        if (currentRobotLocation) {
+            points.push({
+                latitude: Number(currentRobotLocation.latitude),
+                longitude: Number(currentRobotLocation.longitude)
+            });
+        }
+
+        const projection = createMapProjection(points);
+        const nodeById = new Map(campusNodes.map((node) => [node.id, node]));
+        const edgeMarkup = campusEdges.map((edge) => {
+            const edgePoints = edge.waypoints && edge.waypoints.length
+                ? edge.waypoints
+                : [nodeById.get(edge.fromNodeId), nodeById.get(edge.toNodeId)].filter(Boolean);
+            const projectedPoints = edgePoints.map((point) => {
+                const projected = projection(point);
+                return `${projected.x.toFixed(1)},${projected.y.toFixed(1)}`;
+            }).join(" ");
+
+            return `<polyline class="map-edge" points="${projectedPoints}"></polyline>`;
+        }).join("");
+
+        const nodeMarkup = campusNodes.map((node) => {
+            const point = projection(node);
+            return `
+                <g>
+                    <circle class="map-node" cx="${point.x}" cy="${point.y}" r="12"></circle>
+                    <text class="map-label" x="${point.x + 16}" y="${point.y - 14}">${escapeHtml(node.name)}</text>
+                </g>
+            `;
+        }).join("");
+
+        const robotMarkup = currentRobotLocation ? renderRobotMarker(projection(currentRobotLocation)) : "";
+        svg.innerHTML = `${edgeMarkup}${nodeMarkup}${robotMarkup}`;
+
+        if (currentRobotLocation) {
+            empty.style.display = "none";
+            robotSummary.textContent =
+                `로봇: 위도 ${formatCoordinate(currentRobotLocation.latitude)}, 경도 ${formatCoordinate(currentRobotLocation.longitude)}`;
+        } else {
+            empty.style.display = "none";
+            robotSummary.textContent = "로봇 위치 대기 중";
+        }
+    }
+
+    function renderRobotMarker(point) {
+        return `
+            <g>
+                <circle class="map-robot-halo" cx="${point.x}" cy="${point.y}" r="30"></circle>
+                <circle class="map-robot" cx="${point.x}" cy="${point.y}" r="15"></circle>
+                <text class="map-label" x="${point.x + 22}" y="${point.y + 8}">로봇</text>
+            </g>
+        `;
+    }
+
+    function createMapProjection(points) {
+        const width = 1000;
+        const height = 560;
+        const padding = 74;
+        const latitudes = points.map((point) => Number(point.latitude));
+        const longitudes = points.map((point) => Number(point.longitude));
+        const minLat = Math.min(...latitudes);
+        const maxLat = Math.max(...latitudes);
+        const minLng = Math.min(...longitudes);
+        const maxLng = Math.max(...longitudes);
+        const latRange = Math.max(maxLat - minLat, 0.00001);
+        const lngRange = Math.max(maxLng - minLng, 0.00001);
+
+        return (point) => {
+            const latitude = Number(point.latitude);
+            const longitude = Number(point.longitude);
+            return {
+                x: padding + ((longitude - minLng) / lngRange) * (width - padding * 2),
+                y: padding + ((maxLat - latitude) / latRange) * (height - padding * 2)
+            };
+        };
+    }
+
+    function renderCampusMap() {
+        const mapContainer = document.getElementById("campus-map-leaflet");
+        const empty = document.getElementById("campus-map-empty");
+        const summary = document.getElementById("campus-map-summary");
+        const robotSummary = document.getElementById("campus-map-robot-summary");
+
+        if (!mapContainer || !empty || !summary || !robotSummary) {
+            return;
+        }
+
+        summary.textContent = `노드 ${campusNodes.length}개, 간선 ${campusEdges.length}개`;
+
+        if (!campusNodes.length) {
+            empty.textContent = "캠퍼스 맵을 불러오는 중입니다.";
+            empty.style.display = "flex";
+            robotSummary.textContent = "로봇 위치 대기 중";
+            return;
+        }
+
+        if (typeof L === "undefined") {
+            empty.textContent = "실제 지도 라이브러리를 불러오지 못했습니다. 네트워크 연결을 확인해 주세요.";
+            empty.style.display = "flex";
+            robotSummary.textContent = "지도 로딩 실패";
+            return;
+        }
+
+        const map = getCampusLeafletMap(mapContainer);
+        const nodeById = new Map(campusNodes.map((node) => [node.id, node]));
+        const boundsPoints = [];
+
+        campusMapLayer.clearLayers();
+
+        campusEdges.forEach((edge) => {
+            const edgePoints = edge.waypoints && edge.waypoints.length
+                ? edge.waypoints
+                : [nodeById.get(edge.fromNodeId), nodeById.get(edge.toNodeId)].filter(Boolean);
+            const latLngs = edgePoints.map(toLatLng).filter(Boolean);
+
+            if (latLngs.length < 2) {
+                return;
+            }
+
+            L.polyline(latLngs, {
+                color: "#c2410c",
+                weight: 5,
+                opacity: 0.72,
+                lineCap: "round",
+                lineJoin: "round"
+            }).addTo(campusMapLayer);
+            boundsPoints.push(...latLngs);
+        });
+
+        campusNodes.forEach((node) => {
+            const latLng = toLatLng(node);
+            if (!latLng) {
+                return;
+            }
+
+            L.circleMarker(latLng, {
+                radius: 7,
+                color: "#c2410c",
+                weight: 3,
+                fillColor: "#ffffff",
+                fillOpacity: 1
+            })
+                .bindPopup(`
+                    <strong>${escapeHtml(node.name)}</strong><br>
+                    위도 ${formatCoordinate(node.latitude)}, 경도 ${formatCoordinate(node.longitude)}
+                `)
+                .addTo(campusMapLayer);
+            boundsPoints.push(latLng);
+        });
+
+        const robotLatLng = toLatLng(currentRobotLocation);
+        if (robotLatLng) {
+            L.marker(robotLatLng, {
+                icon: createRobotMapIcon(),
+                zIndexOffset: 1000
+            })
+                .bindPopup(`
+                    <strong>로봇 현재 위치</strong><br>
+                    위도 ${formatCoordinate(currentRobotLocation.latitude)}, 경도 ${formatCoordinate(currentRobotLocation.longitude)}
+                `)
+                .addTo(campusMapLayer);
+            boundsPoints.push(robotLatLng);
+            robotSummary.textContent =
+                `로봇: 위도 ${formatCoordinate(currentRobotLocation.latitude)}, 경도 ${formatCoordinate(currentRobotLocation.longitude)}`;
+
+            if (campusMapBoundsInitialized && !map.getBounds().pad(0.15).contains(robotLatLng)) {
+                map.panTo(robotLatLng);
+            }
+        } else {
+            robotSummary.textContent = "로봇 위치 대기 중";
+        }
+
+        if (!campusMapBoundsInitialized && boundsPoints.length) {
+            map.fitBounds(L.latLngBounds(boundsPoints), {
+                padding: [34, 34],
+                maxZoom: 18
+            });
+            campusMapBoundsInitialized = true;
+        }
+
+        empty.style.display = "none";
+        setTimeout(() => map.invalidateSize(), 0);
+    }
+
+    function getCampusLeafletMap(mapContainer) {
+        if (campusMapInstance) {
+            return campusMapInstance;
+        }
+
+        campusMapInstance = L.map(mapContainer, {
+            center: [37.3753, 126.6334],
+            zoom: 17,
+            minZoom: 15,
+            maxZoom: 20,
+            scrollWheelZoom: false
+        });
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 20,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(campusMapInstance);
+
+        campusMapLayer = L.layerGroup().addTo(campusMapInstance);
+        return campusMapInstance;
+    }
+
+    function createRobotMapIcon() {
+        return L.divIcon({
+            className: "campus-robot-icon",
+            html: '<span class="robot-pulse"></span><span class="robot-dot"></span>',
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
+        });
+    }
+
+    function toLatLng(point) {
+        if (!point) {
+            return null;
+        }
+
+        const latitude = Number(point.latitude);
+        const longitude = Number(point.longitude);
+
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            return null;
+        }
+
+        return [latitude, longitude];
+    }
+
+    function renderRobotCommandStatus(container) {
+        if (!container) {
+            return;
+        }
+
+        const robot = currentRobotStatus || {};
+        const sortedMissions = [...currentMissions].sort((left, right) =>
+            missionTimestamp(right) - missionTimestamp(left)
+        );
+        const currentMission = robot.currentMissionId
+            ? sortedMissions.find((mission) => mission.missionId === robot.currentMissionId)
+            : sortedMissions.find((mission) => activeMissionStatuses.has(mission.status));
+        const visibleMissions = sortedMissions
+            .filter((mission) => activeMissionStatuses.has(mission.status) || mission.missionId === robot.currentMissionId)
+            .slice(0, 5);
+        const fallbackMissions = visibleMissions.length ? visibleMissions : sortedMissions.slice(0, 5);
+
+        container.innerHTML = `
+            <div class="command-grid">
+                <article class="command-card">
+                    <h3>로봇 상태</h3>
+                    <div class="large ${robotStatusClass(robot.status)}">
+                        ${escapeHtml(robotStatusLabels[robot.status] || robot.status || "-")}
+                    </div>
+                    <div class="mission-meta-row">
+                        <span>현재 미션</span>
+                        <strong>${robot.currentMissionId ? shortId(robot.currentMissionId) : "-"}</strong>
+                    </div>
+                    <div class="mission-meta-row">
+                        <span>갱신</span>
+                        <span>${formatDate(robot.updatedAt)}</span>
+                    </div>
+                </article>
+                <article class="command-card">
+                    <h3>현재 명령</h3>
+                    ${currentMission ? renderCurrentMissionSummary(currentMission) : '<div class="mission-empty">현재 수행 중인 명령이 없습니다.</div>'}
+                </article>
+            </div>
+            <div class="mission-list" style="margin-top: 14px;">
+                ${fallbackMissions.length
+                    ? fallbackMissions.map((mission) => renderMissionItem(mission, mission.missionId === robot.currentMissionId)).join("")
+                    : '<div class="mission-empty">아직 로봇에게 전송된 명령이 없습니다.</div>'
+                }
+            </div>
+        `;
+    }
+
+    function renderCurrentMissionSummary(mission) {
+        return `
+            <div class="mission-route">${escapeHtml(nodeName(mission.fromNodeId))} → ${escapeHtml(nodeName(mission.toNodeId))}</div>
+            <div class="mission-meta-row">
+                <span>${escapeHtml(missionTypeLabels[mission.type] || mission.type)}</span>
+                <span class="status-pill ${missionStatusClass(mission.status)}">
+                    ${escapeHtml(missionStatusLabels[mission.status] || mission.status)}
+                </span>
+            </div>
+            <div class="mission-meta-row">
+                <span>주문 ${shortId(mission.orderId)}</span>
+                <span>경유점 ${mission.waypoints?.length || 0}개</span>
+            </div>
+            ${mission.lastMessage ? `<div class="mission-message">${escapeHtml(mission.lastMessage)}</div>` : ""}
+        `;
+    }
+
+    function renderMissionItem(mission, isCurrent) {
+        return `
+            <article class="mission-item ${isCurrent ? "current" : ""}">
+                <div class="mission-item-head">
+                    <div>
+                        <div class="mission-title">
+                            ${escapeHtml(missionTypeLabels[mission.type] || mission.type)} 명령 ${shortId(mission.missionId)}
+                        </div>
+                        <div class="mission-route">
+                            ${escapeHtml(nodeName(mission.fromNodeId))} → ${escapeHtml(nodeName(mission.toNodeId))}
+                        </div>
+                    </div>
+                    <span class="status-pill ${missionStatusClass(mission.status)}">
+                        ${escapeHtml(missionStatusLabels[mission.status] || mission.status)}
+                    </span>
+                </div>
+                <div class="mission-meta-row">
+                    <span>주문 ${shortId(mission.orderId)}</span>
+                    <span>생성 ${formatDate(mission.createdAt)}</span>
+                    <span>갱신 ${formatDate(mission.updatedAt)}</span>
+                </div>
+                ${mission.lastMessage ? `<div class="mission-message">${escapeHtml(mission.lastMessage)}</div>` : ""}
+            </article>
+        `;
+    }
+
+    function missionTimestamp(mission) {
+        return new Date(mission.updatedAt || mission.createdAt || 0).getTime();
+    }
+
+    function robotStatusClass(status) {
+        return `robot-status-${String(status || "").toLowerCase()}`;
+    }
+
+    function missionStatusClass(status) {
+        return `mission-status-${String(status || "").toLowerCase()}`;
     }
 
     async function refreshDashboard() {
         await Promise.all([
-            loadOrders(),
+            loadRobotCommandStatus(),
             loadRobotLocation()
         ]);
+        await loadOrders();
     }
 
     function renderSummary(orders) {
@@ -596,6 +1292,10 @@
     }
 
     function renderActionCell(order) {
+        if (order.status === "WAITING") {
+            return renderRouteAssignmentCell(order);
+        }
+
         const actions = statusActions[order.status] || [];
         if (!actions.length) {
             return '<span class="action-text">처리 완료</span>';
@@ -613,6 +1313,7 @@
                 <button
                     type="button"
                     class="${className}"
+                    data-action="status"
                     data-order-id="${order.id}"
                     data-next-status="${action.status}"
                     ${disabled}
@@ -625,12 +1326,102 @@
         return `<div class="action-group">${buttons}</div>`;
     }
 
+    function renderRouteAssignmentCell(order) {
+        const isAssigning = assigningOrders.has(order.id);
+        const robotBusy = currentRobotStatus && currentRobotStatus.status !== "IDLE";
+        const disabled = isAssigning || campusNodes.length === 0 || robotBusy ? "disabled" : "";
+        const startValue = nodeExists(DEFAULT_FROM_NODE_ID) ? DEFAULT_FROM_NODE_ID : campusNodes[0]?.id;
+        const destinationValue = resolveDestinationNode(order.deliveryAddress);
+        const buttonLabel = isAssigning ? "전송 중..." : robotBusy ? "로봇 사용 중" : "로봇 지시";
+
+        return `
+            <div class="action-group" data-route-order-id="${order.id}">
+                <div class="route-controls">
+                    <label>
+                        출발지
+                        <select data-route-field="from" ${disabled}>
+                            ${renderNodeOptions(startValue)}
+                        </select>
+                    </label>
+                    <label>
+                        목적지
+                        <select data-route-field="to" ${disabled}>
+                            ${renderNodeOptions(destinationValue)}
+                        </select>
+                    </label>
+                </div>
+                <button
+                    type="button"
+                    class="action-button"
+                    data-action="assign-route"
+                    data-order-id="${order.id}"
+                    ${disabled}
+                >
+                    ${buttonLabel}
+                </button>
+            </div>
+        `;
+    }
+
     function attachActionHandlers(container) {
-        container.querySelectorAll(".action-button").forEach((button) => {
+        container.querySelectorAll('[data-action="status"]').forEach((button) => {
             button.addEventListener("click", async () => {
                 await updateOrderStatus(button.dataset.orderId, button.dataset.nextStatus);
             });
         });
+
+        container.querySelectorAll('[data-action="assign-route"]').forEach((button) => {
+            button.addEventListener("click", async () => {
+                const group = button.closest("[data-route-order-id]");
+                const fromNodeId = group.querySelector('[data-route-field="from"]').value;
+                const destinationNodeId = group.querySelector('[data-route-field="to"]').value;
+                await assignRobotRoute(button.dataset.orderId, fromNodeId, destinationNodeId);
+            });
+        });
+    }
+
+    async function assignRobotRoute(orderId, fromNodeId, destinationNodeId) {
+        if (assigningOrders.has(orderId)) {
+            return;
+        }
+
+        if (!fromNodeId || !destinationNodeId) {
+            showFeedback("출발지와 목적지를 모두 선택해 주세요.", "error");
+            return;
+        }
+
+        assigningOrders.add(orderId);
+        showFeedback("로봇 배송 미션을 생성하고 있습니다.", "info");
+        await loadOrders();
+
+        try {
+            const response = await fetch(`/api/orders/${orderId}/assign-robot`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify({ fromNodeId, destinationNodeId })
+            });
+
+            if (!response.ok) {
+                throw new Error(await readErrorMessage(response, "로봇 배송 미션을 생성하지 못했습니다."));
+            }
+
+            const result = await response.json();
+            const mission = result.mission;
+            const routeText = `${nodeName(mission.fromNodeId)} → ${nodeName(mission.toNodeId)}`;
+            const connectionText = result.robotConnected ? "로봇에 전송했습니다." : "로봇 미연결 상태라 미션을 저장했습니다.";
+            showFeedback(`${connectionText} 미션 ${mission.missionId} (${routeText})`, "success");
+        } catch (error) {
+            const busyHint = error.message.includes("Robot cannot accept")
+                ? " 아래 로봇 명령 현황에서 현재 수행 중인 미션을 확인해 주세요."
+                : "";
+            showFeedback(`${error.message}${busyHint}`, "error");
+        } finally {
+            assigningOrders.delete(orderId);
+            await refreshDashboard();
+        }
     }
 
     async function updateOrderStatus(orderId, nextStatus) {
@@ -653,18 +1444,7 @@
             });
 
             if (!response.ok) {
-                let errorMessage = "주문 상태를 변경하지 못했습니다.";
-
-                try {
-                    const errorBody = await response.json();
-                    if (errorBody && errorBody.message) {
-                        errorMessage = errorBody.message;
-                    }
-                } catch (error) {
-                    // Ignore JSON parse errors and use the default message.
-                }
-
-                throw new Error(errorMessage);
+                throw new Error(await readErrorMessage(response, "주문 상태를 변경하지 못했습니다."));
             }
 
             const updatedOrder = await response.json();
@@ -677,17 +1457,58 @@
         }
     }
 
+    async function readErrorMessage(response, fallback) {
+        try {
+            const errorBody = await response.json();
+            return errorBody.detail || errorBody.message || fallback;
+        } catch (error) {
+            return fallback;
+        }
+    }
+
+    function renderNodeOptions(selectedNodeId) {
+        return campusNodes.map((node) => `
+            <option value="${escapeHtml(node.id)}" ${node.id === selectedNodeId ? "selected" : ""}>
+                ${escapeHtml(node.name)}
+            </option>
+        `).join("");
+    }
+
+    function resolveDestinationNode(deliveryAddress) {
+        if (nodeExists(deliveryAddress)) {
+            return deliveryAddress;
+        }
+        if (nodeExists(DEFAULT_TO_NODE_ID)) {
+            return DEFAULT_TO_NODE_ID;
+        }
+        return campusNodes[0]?.id || "";
+    }
+
+    function nodeExists(nodeId) {
+        return campusNodes.some((node) => node.id === nodeId);
+    }
+
+    function nodeName(nodeId) {
+        return campusNodes.find((node) => node.id === nodeId)?.name || nodeId;
+    }
+
     function showFeedback(message, tone = "success") {
         const feedback = document.getElementById("admin-feedback");
         feedback.textContent = message;
         feedback.className = `feedback show ${tone}`;
     }
 
+    function shortId(value) {
+        if (!value) {
+            return "-";
+        }
+        return String(value).slice(0, 8);
+    }
+
     function formatDate(value) {
         if (!value) {
             return "-";
         }
-
         return new Date(value).toLocaleString("ko-KR");
     }
 
@@ -704,9 +1525,19 @@
             .replaceAll("'", "&#39;");
     }
 
+    async function init() {
+        try {
+            await loadCampusMap();
+        } catch (error) {
+            showFeedback(error.message, "error");
+        }
+
+        await refreshDashboard();
+        setInterval(refreshDashboard, 10000);
+    }
+
     document.getElementById("refresh-button").addEventListener("click", refreshDashboard);
-    refreshDashboard();
-    setInterval(refreshDashboard, 10000);
+    init();
 </script>
 </body>
 </html>
